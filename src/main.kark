@@ -1,0 +1,148 @@
+// Karkain ERP - first functional slice.
+// Organization, department and business transaction workflow with a
+// persisted ledger. Builtins only; all paths are relative to the repo root.
+
+func upsert_named(state, kind, name) {
+    let rec = kind + "|" + name
+    let out = []
+    let i = 0
+    let replaced = 0
+    while (i < len(state)) {
+        let f = split(state[i], "|")
+        if (f[0] == kind) {
+            if (f[1] == name) { push(out, rec); replaced = 1 }
+            else { push(out, state[i]) }
+        } else { push(out, state[i]) }
+        i = i + 1
+    }
+    if (replaced == 0) { push(out, rec) }
+    return out
+}
+
+func count_kind(state, kind) {
+    let n = 0
+    let i = 0
+    while (i < len(state)) {
+        let f = split(state[i], "|")
+        if (f[0] == kind) { n = n + 1 }
+        i = i + 1
+    }
+    return n
+}
+
+func has_txn(state, ttype, amount) {
+    let i = 0
+    while (i < len(state)) {
+        let f = split(state[i], "|")
+        if (f[0] == "TXN") {
+            if (f[2] == ttype) {
+                if (f[3] == str(amount)) { return 1 }
+            }
+        }
+        i = i + 1
+    }
+    return 0
+}
+
+func add_txn(state, ttype, amount) {
+    if (has_txn(state, ttype, amount) == 1) { return state }
+    let id = count_kind(state, "TXN") + 1
+    let rec = "TXN|" + str(id) + "|" + ttype + "|" + str(amount) + "|0"
+    let out = []
+    let i = 0
+    while (i < len(state)) { push(out, state[i]); i = i + 1 }
+    push(out, rec)
+    return out
+}
+
+func post_all(state) {
+    let out = []
+    let n = 0
+    let i = 0
+    while (i < len(state)) {
+        let f = split(state[i], "|")
+        if (f[0] == "TXN") {
+            let rec = "TXN|" + f[1] + "|" + f[2] + "|" + f[3] + "|1"
+            push(out, rec)
+            n = n + 1
+        } else { push(out, state[i]) }
+        i = i + 1
+    }
+    print("POST posted=" + str(n))
+    return out
+}
+
+func balance(state) {
+    let income = 0
+    let expense = 0
+    let i = 0
+    while (i < len(state)) {
+        let f = split(state[i], "|")
+        if (f[0] == "TXN") {
+            if (f[4] == "1") {
+                if (f[2] == "INCOME") { income = income + int(f[3]) }
+                if (f[2] == "EXPENSE") { expense = expense + int(f[3]) }
+            }
+        }
+        i = i + 1
+    }
+    let net = income - expense
+    print("BALANCE income=" + str(income) + " expense=" + str(expense) + " net=" + str(net))
+    return net
+}
+
+func persist(path, state) {
+    let out = ""
+    let i = 0
+    while (i < len(state)) { out = out + state[i] + "\n"; i = i + 1 }
+    writeFile(path, out)
+}
+
+func main() {
+    let cmd_path = "data/commands.dat"
+    let state_path = "data/state.dat"
+    let report_path = "data/report.dat"
+    let txt = readFile(cmd_path)
+    let cmds = split(txt, "\n")
+    let state = split(readFile(state_path), "\n")
+    let report = ""
+    let i = 0
+    while (i < len(cmds)) {
+        let line = trim(cmds[i])
+        if (line != "") {
+            let f = split(line, "|")
+            let op = trim(f[0])
+            if (op == "ORG") {
+                let name = trim(f[1])
+                state = upsert_named(state, "ORG", name)
+                report = report + "ORG " + name + "\n"
+                print("ORG " + name)
+            }
+            if (op == "DEPT") {
+                let name = trim(f[1])
+                state = upsert_named(state, "DEPT", name)
+                report = report + "DEPT " + name + "\n"
+                print("DEPT " + name)
+            }
+            if (op == "TXN") {
+                let ttype = trim(f[1])
+                let amount = int(trim(f[2]))
+                state = add_txn(state, ttype, amount)
+                report = report + "TXN " + ttype + " " + str(amount) + "\n"
+                print("TXN " + ttype + " " + str(amount))
+            }
+            if (op == "POST") {
+                state = post_all(state)
+                report = report + "POST\n"
+            }
+            if (op == "BALANCE") {
+                balance(state)
+                report = report + "BALANCE\n"
+            }
+        }
+        i = i + 1
+    }
+    persist(state_path, state)
+    persist(report_path, split(report, "\n"))
+    print("ERP_OK orgs=" + str(count_kind(state, "ORG")) + " depts=" + str(count_kind(state, "DEPT")) + " txns=" + str(count_kind(state, "TXN")))
+}

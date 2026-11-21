@@ -1,0 +1,6 @@
+ORG|Karkain Industries
+DEPT|Engineering
+DEPT|Finance
+TXN|1|INCOME|5000|1
+TXN|2|EXPENSE|1200|1
+TXN|3|INCOME|3000|1
