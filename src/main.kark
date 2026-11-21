@@ -1,6 +1,7 @@
 // Karkain ERP - first functional slice.
 // Organization, department and business transaction workflow with a
 // persisted ledger. Builtins only; all paths are relative to the repo root.
+import erp_valid
 
 func upsert_named(state, kind, name) {
     let rec = kind + "|" + name
@@ -145,4 +146,5 @@ func main() {
     persist(state_path, state)
     persist(report_path, split(report, "\n"))
     print("ERP_OK orgs=" + str(count_kind(state, "ORG")) + " depts=" + str(count_kind(state, "DEPT")) + " txns=" + str(count_kind(state, "TXN")))
+    erp_valid.erp2_run()
 }

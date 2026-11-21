@@ -1,0 +1,14 @@
+ORG|Karkain Industries
+DEPT|Engineering|Karkain Industries
+DEPT|Finance|Karkain Industries
+ERROR|DEPT|unknown_org|Unknown Org
+TXN|1|INCOME|5000|Engineering|1|1
+TXN|2|EXPENSE|1200|Finance|1|1
+TXN|3|INCOME|-50|Engineering|0|0
+ERROR|TXN|nonpositive_amount|3
+TXN|4|INCOME|3000|Orphan|0|0
+ERROR|TXN|unknown_dept|4
+TXN|5|INCOME|700|Finance|1|1
+CLOSED|2026-01
+TXN|6|INCOME|900|Engineering|0|1
+ERROR|POST|period_closed|-

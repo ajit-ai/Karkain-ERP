@@ -1,0 +1,14 @@
+ORG|Karkain Industries
+DEPT|Engineering|Karkain Industries
+DEPT|Finance|Karkain Industries
+DEPT|Orphan|Unknown Org
+TXN|INCOME|5000|Engineering
+TXN|EXPENSE|1200|Finance
+TXN|INCOME|-50|Engineering
+TXN|INCOME|3000|Orphan
+TXN|INCOME|700|Finance
+POST
+CLOSE|2026-01
+TXN|INCOME|900|Engineering
+POST
+SUMMARY

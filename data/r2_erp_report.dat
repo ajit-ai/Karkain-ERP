@@ -1,0 +1,15 @@
+ERP2 ORG Karkain Industries
+ERP2 DEPT Engineering org=Karkain Industries
+ERP2 DEPT Finance org=Karkain Industries
+ERP2 DEPT Orphan FAIL unknown_org=Unknown Org
+ERP2 TXN 1 INCOME 5000 dept=Engineering validated=1
+ERP2 TXN 2 EXPENSE 1200 dept=Finance validated=1
+ERP2 TXN 3 FAIL nonpositive_amount
+ERP2 TXN 4 FAIL unknown_dept
+ERP2 TXN 5 INCOME 700 dept=Finance validated=1
+ERP2 POST posted=3
+ERP2 CLOSE period=2026-01
+ERP2 TXN 6 INCOME 900 dept=Engineering validated=1
+ERP2 POST FAIL period_closed
+ERP2 SUMMARY dept=Engineering income=5000 expense=0 net=5000
+ERP2 SUMMARY dept=Finance income=700 expense=1200 net=-500

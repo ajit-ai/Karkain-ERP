@@ -1,0 +1,163 @@
+// Karkain ERP - Round 2 integrated validation and department reporting.
+// Self-contained module: reads data/r2_erp.dat, rebuilds state from scratch on
+// every run (safe to repeat), and persists to data/r2_erp_state.dat /
+// data/r2_erp_report.dat. Round 1 sources, state and output are untouched.
+
+func r2_has(state, kind, key) {
+    let i = 0
+    while (i < len(state)) {
+        let f = split(state[i], "|")
+        if (f[0] == kind) {
+            if (f[1] == key) { return 1 }
+        }
+        i = i + 1
+    }
+    return 0
+}
+
+func r2_count(state, kind) {
+    let n = 0
+    let i = 0
+    while (i < len(state)) {
+        let f = split(state[i], "|")
+        if (f[0] == kind) { n = n + 1 }
+        i = i + 1
+    }
+    return n
+}
+
+func r2_persist(path, state) {
+    let out = ""
+    let i = 0
+    while (i < len(state)) {
+        out = out + state[i] + "\n"
+        i = i + 1
+    }
+    writeFile(path, out)
+}
+
+public func erp2_run() {
+    let cmds = split(readFile("data/r2_erp.dat"), "\n")
+    let state = []
+    let report = ""
+    let closed = 0
+    let seq = 0
+    let i = 0
+    while (i < len(cmds)) {
+        let line = trim(cmds[i])
+        if (line != "") {
+            let f = split(line, "|")
+            let op = trim(f[0])
+            if (op == "ORG") {
+                let name = trim(f[1])
+                if (r2_has(state, "ORG", name) == 0) { push(state, "ORG|" + name) }
+                let msg = "ORG " + name
+                print("ERP2 " + msg)
+                report = report + "ERP2 " + msg + "\n"
+            }
+            if (op == "DEPT") {
+                let name = trim(f[1])
+                let org = trim(f[2])
+                if (r2_has(state, "ORG", org) == 1) {
+                    if (r2_has(state, "DEPT", name) == 0) { push(state, "DEPT|" + name + "|" + org) }
+                    let msg = "DEPT " + name + " org=" + org
+                    print("ERP2 " + msg)
+                    report = report + "ERP2 " + msg + "\n"
+                } else {
+                    push(state, "ERROR|DEPT|unknown_org|" + org)
+                    let msg = "DEPT " + name + " FAIL unknown_org=" + org
+                    print("ERP2 " + msg)
+                    report = report + "ERP2 " + msg + "\n"
+                }
+            }
+            if (op == "TXN") {
+                let ttype = trim(f[1])
+                let amt = int(trim(f[2]))
+                let dept = trim(f[3])
+                seq = seq + 1
+                let reason = ""
+                if (r2_has(state, "DEPT", dept) == 0) { reason = "unknown_dept" }
+                if (amt <= 0) { reason = "nonpositive_amount" }
+                let validated = 0
+                if (reason == "") { validated = 1 }
+                let rec = "TXN|" + str(seq) + "|" + ttype + "|" + str(amt) + "|" + dept + "|0|" + str(validated)
+                push(state, rec)
+                if (validated == 1) {
+                    let msg = "TXN " + str(seq) + " " + ttype + " " + str(amt) + " dept=" + dept + " validated=1"
+                    print("ERP2 " + msg)
+                    report = report + "ERP2 " + msg + "\n"
+                } else {
+                    push(state, "ERROR|TXN|" + reason + "|" + str(seq))
+                    let msg = "TXN " + str(seq) + " FAIL " + reason
+                    print("ERP2 " + msg)
+                    report = report + "ERP2 " + msg + "\n"
+                }
+            }
+            if (op == "POST") {
+                if (closed == 1) {
+                    push(state, "ERROR|POST|period_closed|-")
+                    let msg = "POST FAIL period_closed"
+                    print("ERP2 " + msg)
+                    report = report + "ERP2 " + msg + "\n"
+                } else {
+                    let n = 0
+                    let j = 0
+                    while (j < len(state)) {
+                        let g = split(state[j], "|")
+                        if (g[0] == "TXN") {
+                            if (g[6] == "1") {
+                                if (g[5] == "0") {
+                                    state[j] = "TXN|" + g[1] + "|" + g[2] + "|" + g[3] + "|" + g[4] + "|1|1"
+                                    n = n + 1
+                                }
+                            }
+                        }
+                        j = j + 1
+                    }
+                    let msg = "POST posted=" + str(n)
+                    print("ERP2 " + msg)
+                    report = report + "ERP2 " + msg + "\n"
+                }
+            }
+            if (op == "CLOSE") {
+                let period = trim(f[1])
+                closed = 1
+                push(state, "CLOSED|" + period)
+                let msg = "CLOSE period=" + period
+                print("ERP2 " + msg)
+                report = report + "ERP2 " + msg + "\n"
+            }
+            if (op == "SUMMARY") {
+                let k = 0
+                while (k < len(state)) {
+                    let d = split(state[k], "|")
+                    if (d[0] == "DEPT") {
+                        let income = 0
+                        let expense = 0
+                        let m = 0
+                        while (m < len(state)) {
+                            let t = split(state[m], "|")
+                            if (t[0] == "TXN") {
+                                if (t[5] == "1") {
+                                    if (t[4] == d[1]) {
+                                        if (t[2] == "INCOME") { income = income + int(t[3]) }
+                                        if (t[2] == "EXPENSE") { expense = expense + int(t[3]) }
+                                    }
+                                }
+                            }
+                            m = m + 1
+                        }
+                        let msg = "SUMMARY dept=" + d[1] + " income=" + str(income) + " expense=" + str(expense) + " net=" + str(income - expense)
+                        print("ERP2 " + msg)
+                        report = report + "ERP2 " + msg + "\n"
+                    }
+                    k = k + 1
+                }
+            }
+        }
+        i = i + 1
+    }
+    r2_persist("data/r2_erp_state.dat", state)
+    r2_persist("data/r2_erp_report.dat", split(report, "\n"))
+    print("ERP2_OK orgs=" + str(r2_count(state, "ORG")) + " depts=" + str(r2_count(state, "DEPT")) + " txns=" + str(r2_count(state, "TXN")) + " errors=" + str(r2_count(state, "ERROR")))
+}

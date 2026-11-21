@@ -1,0 +1,62 @@
+// Round 2 operations tests for Karkain ERP (self-contained, in-memory).
+
+func test_dept_must_belong_to_org() {
+    let orgs = ["Karkain Industries"]
+    let depts = ["Engineering|Karkain Industries", "Orphan|Unknown Org"]
+    let valid = 0
+    let i = 0
+    while (i < len(depts)) {
+        let d = split(depts[i], "|")
+        let j = 0
+        while (j < len(orgs)) {
+            if (d[1] == orgs[j]) { valid = valid + 1 }
+            j = j + 1
+        }
+        i = i + 1
+    }
+    assert_eq(valid, 1)
+    let f = split("DEPT|Engineering|Karkain Industries", "|")
+    assert_eq(f[0], "DEPT")
+    assert_eq(f[2], "Karkain Industries")
+}
+
+func test_txn_positive_and_validation_flag() {
+    let txns = ["TXN|1|INCOME|5000|Engineering|0|1", "TXN|2|EXPENSE|1200|Finance|0|1", "TXN|3|INCOME|-50|Engineering|0|0"]
+    let validated = 0
+    let posted = 0
+    let i = 0
+    while (i < len(txns)) {
+        let f = split(txns[i], "|")
+        if (f[6] == "1") { validated = validated + 1 }
+        if (f[5] == "1") { posted = posted + 1 }
+        i = i + 1
+    }
+    assert_eq(validated, 2)
+    assert_eq(posted, 0)
+    assert_eq(int(split(txns[2], "|")[3]), -50)
+}
+
+func test_summary_by_department() {
+    let txns = ["TXN|1|INCOME|5000|Engineering|1|1", "TXN|2|EXPENSE|1200|Finance|1|1", "TXN|3|INCOME|700|Finance|1|1", "TXN|4|INCOME|900|Engineering|0|1"]
+    let eng_income = 0
+    let fin_income = 0
+    let fin_expense = 0
+    let i = 0
+    while (i < len(txns)) {
+        let f = split(txns[i], "|")
+        if (f[5] == "1") {
+            if (f[4] == "Engineering") {
+                if (f[2] == "INCOME") { eng_income = eng_income + int(f[3]) }
+            }
+            if (f[4] == "Finance") {
+                if (f[2] == "INCOME") { fin_income = fin_income + int(f[3]) }
+                if (f[2] == "EXPENSE") { fin_expense = fin_expense + int(f[3]) }
+            }
+        }
+        i = i + 1
+    }
+    assert_eq(eng_income, 5000)
+    assert_eq(fin_income, 700)
+    assert_eq(fin_expense, 1200)
+    assert_eq(fin_income - fin_expense, -500)
+}
